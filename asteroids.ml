@@ -1,12 +1,14 @@
 
 open Graphics;;
+open List;; (* Ajout du module des listes pour plus d'ops sur les listes *)
 
 (* constantes et parametres *)
+let pi = 4.0 *. atan 1.0;;
+
 
 (* dimension fenetre graphique *)
 let width = 1000;;
 let height = 600;;
-
 
 (* --- definition types pour etat du jeu --- *)
 
@@ -17,7 +19,7 @@ type position = {
 };;
 
 type vaisseau = {
-  angle : int
+  angle : float
 }
 
 type asteroide = {
@@ -27,6 +29,7 @@ type asteroide = {
 };;
 
 type projectile = {
+  angle : float;
   position : position;
   vitesse : int
 };;
@@ -37,12 +40,20 @@ type etat = {
     projectiles: projectile list
 };;(* A REDEFINIR *)
 
+
+
+(* --- Fonction pour pour convertir degree vers radian ---*)
+let degre_vers_radian a = (pi *. a) /. 180.0;;
+let d_v_r = degre_vers_radian;;
+
+
+
 (* --- initialisations etat --- *)
 (* A DEFINIR : generation positions, deplacements initiaux ... *)
 
 let init_etat () =
   {
-      vaisseau = { angle = 270 };
+      vaisseau = { angle = 90.0 };
       asteroides = [];
       projectiles = []
   };; (* A REDEFINIR *)
@@ -54,36 +65,83 @@ let acceleration etat = etat (* A REDEFINIR *)
 
 (* rotation vers la gauche et vers la droite du vaisseau *)
 let rotation_gauche etat =
-  let new_angle = etat.vaisseau.angle mod 360 in
+  let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (new_angle - 1) };
+      vaisseau = { angle = (float_of_int (new_angle) -. 1.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles
   };; (* A REDEFINIR *)
 
 let rotation_droite etat =
-  let new_angle = etat.vaisseau.angle mod 360 in
+  let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (new_angle + 1) };
+      vaisseau = { angle = (float_of_int (new_angle) +. 1.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles
   };; (* A REDEFINIR *)
 
 (* tir d'un nouveau projectile *)
-let tir etat = etat(* A REDEFINIR *)
+let tir etat =
+  {
+      vaisseau = etat.vaisseau;
+      asteroides = etat.asteroides;
+      projectiles = {
+        angle = etat.vaisseau.angle;
+        position = {
+          x = int_of_float(500.0 +. 20.0 *. cos (d_v_r etat.vaisseau.angle));
+          y = int_of_float(300.0 +. 20.0 *. sin (d_v_r etat.vaisseau.angle))
+        };
+        vitesse = 1
+      } :: etat.projectiles
+  };;(* A REDEFINIR *)
 
 (* calcul de l'etat suivant, apres un pas de temps *)
-let etat_suivant etat = etat;; (* A REDEFINIR *)
+let rec mise_a_jour_projectiles l =
+  let maj a =
+    {
+      angle = a.angle;
+      position = {
+          x = a.position.x + int_of_float((1. *. (cos (d_v_r a.angle))));
+          y = a.position.y + int_of_float((1. *. (sin (d_v_r a.angle))))
+      };
+      vitesse = 1
+    }
+  in
+  match l with
+  | [] -> []
+  | a::s -> (maj a)::mise_a_jour_projectiles(s);;
 
+let majp = mise_a_jour_projectiles;;
+
+let etat_suivant etat =
+  {
+    vaisseau = etat.vaisseau;
+    asteroides = etat.asteroides;
+    projectiles = majp etat.projectiles
+  };;
 (* --- affichages graphiques --- *)
 
 (* fonctions d'affichage du vaisseau, d'un asteroide, etc. *)
+
+let rec affiche_projectiles (projectiles : projectile list) =
+  match projectiles with
+  | [] -> ()
+  | a::s -> fill_circle a.position.x a.position.y 2; affiche_projectiles s;;
 
 let affiche_etat etat =
   set_color black;
   fill_rect 0 0 1000 600;
   set_color white;
-  fill_arc 500 300 30 30 (etat.vaisseau.angle - 30) (etat.vaisseau.angle + 30);;
+  draw_circle 500 300 20;
+  fill_poly [|
+    (int_of_float(500.0 +. 20.0 *. cos (d_v_r etat.vaisseau.angle)), int_of_float(300.0 +. 20.0 *. sin (d_v_r etat.vaisseau.angle)));
+    (int_of_float(500.0 +. 20.0 *. cos (d_v_r (etat.vaisseau.angle -. 120.0))), int_of_float(300.0 +. 20.0 *. sin (d_v_r (etat.vaisseau.angle -. 120.0))));
+    (int_of_float(500.0 +. 20.0 *. cos (d_v_r (etat.vaisseau.angle +. 120.0))), int_of_float(300.0 +. 20.0 *. sin (d_v_r (etat.vaisseau.angle +. 120.0))))
+  |];
+  set_color blue;
+  fill_circle (int_of_float(500.0 +. 20.0 *. cos (d_v_r etat.vaisseau.angle))) (int_of_float(300.0 +. 20.0 *. sin (d_v_r etat.vaisseau.angle))) 2;
+  set_color yellow;
+  affiche_projectiles etat.projectiles;;
 
 (* --- boucle d'interaction --- *)
 
