@@ -6,6 +6,9 @@ open List;; (* Ajout du module des listes pour plus d'ops sur les listes *)
 let pi = 4.0 *. atan 1.0;;
 let couleurs = [| red; white; yellow; cyan; magenta; green; blue |];;
 
+(*message de fin de partie*)
+let perdu = "PERDU FDP D'ADRIEN";;
+
 (* dimension fenetre graphique *)
 let width = 1000;;
 let height = 600;;
@@ -42,7 +45,8 @@ type projectile = {
 type etat = {
     vaisseau : vaisseau;
     asteroides: asteroide list;
-    projectiles: projectile list
+    projectiles: projectile list;
+    victoire : bool
 };;(* A REDEFINIR *)
 
 
@@ -90,7 +94,8 @@ let init_etat () =
   {
       vaisseau = { angle = 90.0 };
       asteroides = faire_asteroide (lance gen_un_cent);
-      projectiles = []
+      projectiles = [];
+      victoire = false;
   };; (* A REDEFINIR *)
 
 (* --- changements d'etat --- *)
@@ -104,7 +109,8 @@ let rotation_gauche etat =
   {
       vaisseau = { angle = (float_of_int (new_angle) -. 1.0) };
       asteroides = etat.asteroides;
-      projectiles = etat.projectiles
+      projectiles = etat.projectiles;
+      victoire = etat.victoire
   };; (* A REDEFINIR *)
 
 let rotation_droite etat =
@@ -112,7 +118,8 @@ let rotation_droite etat =
   {
       vaisseau = { angle = (float_of_int (new_angle) +. 1.0) };
       asteroides = etat.asteroides;
-      projectiles = etat.projectiles
+      projectiles = etat.projectiles;
+      victoire = etat.victoire
   };; (* A REDEFINIR *)
 
 (* tir d'un nouveau projectile *)
@@ -128,7 +135,8 @@ let tir etat =
           y = int_of_float(300.0 +. 10.0 *. sin (d_v_r etat.vaisseau.angle))
         };
         vitesse = 6
-      } :: etat.projectiles
+      } :: etat.projectiles;
+      victoire = etat.victoire
   };;(* A REDEFINIR *)
 
 (* calcul de l'etat suivant, apres un pas de temps *)
@@ -181,44 +189,65 @@ let majp = mise_a_jour_projectiles;;
 
 (* Fonction qui test les collision avec les asteroides et les projectiles *)
 let collision_tir etat =
-  let res = {
-    vaisseau = etat.vaisseau;
-    asteroides = [];
-    projectiles = []
-  }
+  let coll_ast etat =
+    fold_left ( fun acc (asteroide : asteroide) ->
+      let i = ref 0 in
+      let col = ref false in
+
+      while !i < (length etat.projectiles) &&  not(!col) do
+        col := ((nth etat.projectiles !i).position.x - asteroide.position.x) * ((nth etat.projectiles !i).position.x - asteroide.position.x) + ((nth etat.projectiles !i).position.y - asteroide.position.y) * ((nth etat.projectiles !i).position.y - asteroide.position.y) <= asteroide.rayon * asteroide.rayon;
+        i := !i + 1
+      done;
+
+      if !col
+      then acc
+      else asteroide :: acc
+    ) [] etat.asteroides
   in
-  let col = ref false in
 
-  for k = 0 to 10 do
-    print_endline "Test";
-  done;
+  let coll_proj etat =
+    fold_left ( fun acc (projectile : projectile) ->
+      let i = ref 0 in
+      let col = ref false in
 
-  for i = 0 to ((length etat.asteroides) - 1) do
-    (*let a = nth etat.asteroides i in
-    let j = ref 0;
+      while !i < (length etat.asteroides) &&  not(!col) do
+        col := (projectile.position.x - (nth etat.asteroides !i).position.x) * (projectile.position.x - (nth etat.asteroides !i).position.x) + (projectile.position.y - (nth etat.asteroides !i).position.y) * (projectile.position.y - (nth etat.asteroides !i).position.y) <= (nth etat.asteroides !i).rayon * (nth etat.asteroides !i).rayon;
+        i := !i + 1
+      done;
 
-    while not(col) && j < (length etat.projectiles) -1 do
-      let p = nth etat.projectiles j in
+      if !col
+      then acc
+      else projectile :: acc
+    ) [] etat.projectiles
+  in
 
-      if(a.rayon * a.rayon < (a.origin.x - p.position.x) * (a.origin.x - p.position.x) + (a.origin.y - p.position.y) * (a.origin.y - p.position.y))
-      then res.projectiles = p :: res.projectiles; j := j + 1;
-
-      if (a.rayon * a.rayon >= (a.origin.x - p.position.x) * (a.origin.x - p.position.x) + (a.origin.y - p.position.y) * (a.origin.y - p.position.y))
-      then col := true
-    done;
-
-    if not(col)
-    then a :: res.asteroides;*)
-  done;
-  res
-
-let etat_suivant etat =
-  (*let res = collision_tir etat.asteroide etat.projectile in
-  let res2 = collision_vaisseau in*)
   {
     vaisseau = etat.vaisseau;
-    asteroides = maja etat.asteroides;
-    projectiles = majp etat.projectiles
+    asteroides = (coll_ast etat);
+    projectiles = (coll_proj etat);
+    victoire = false
+  }
+
+let rec collision_vaisseau (asteroides : asteroide list) vaisseau =
+  match asteroides with
+  | [] -> false
+  | a::s when (a.position.x - 500) * (a.position.x - 500) + (a.position.y - 300) * (a.position.y - 300) <= a.rayon * a.rayon -> true
+  | a::s -> collision_vaisseau s vaisseau
+
+let etat_suivant etat =
+  let res = collision_tir etat in
+  if (collision_vaisseau etat.asteroides etat.vaisseau)
+  then {
+    vaisseau = etat.vaisseau;
+    asteroides = [];
+    projectiles = [];
+    victoire = false
+  }
+  else {
+    vaisseau = etat.vaisseau;
+    asteroides = maja res.asteroides;
+    projectiles = majp res.projectiles;
+    victoire = false
   };;
 (* --- affichages graphiques --- *)
 
@@ -250,8 +279,17 @@ let rec affiche_asteroides (asteroides : asteroide list) =
 let affiche_etat etat =
   set_color black;
   fill_rect 0 0 1000 600;
+
+  set_color red;
+  moveto 500 500;
+
+  if etat.victoire
+  then draw_string "Gagné";
+
+  if (length etat.asteroides) <= 0
+  then draw_string perdu;
+  
   set_color white;
-  draw_circle 500 300 20;
   affiche_vaisseau etat.vaisseau;
   set_color yellow;
   affiche_projectiles etat.projectiles;
