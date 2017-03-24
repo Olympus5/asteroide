@@ -7,6 +7,7 @@ let pi = 4.0 *. atan 1.0;;
 let couleurs = [| red; white; yellow; cyan; magenta; green; blue |];;
 
 (*message de fin de partie*)
+let gagne = "Cest gagné :D";;
 let perdu = "PERDU FDP D'ADRIEN";;
 
 (* dimension fenetre graphique *)
@@ -61,7 +62,7 @@ type 'a gen = unit -> 'a;;
 let lance (g : 'a gen) : 'a = g ();;
 
 let gen_un_cent = fun () -> 1 + (Random.int 50);;
-let gen_rayon = fun () -> 6 + (Random.int 85);;
+let gen_rayon = fun () -> ([|5; 10; 20; 40|]).(Random.int 4);;
 let gen_angle = fun () -> Random.int 360;;
 let gen_x = fun () -> ([| Random.int 401; 600 + (Random.int 401) |]).(Random.int 2);;
 let gen_y = fun () -> ([| Random.int 201; 400 + (Random.int 201) |]).(Random.int 2);;
@@ -107,7 +108,7 @@ let acceleration etat = etat (* A REDEFINIR *)
 let rotation_gauche etat =
   let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (float_of_int (new_angle) -. 1.0) };
+      vaisseau = { angle = (float_of_int (new_angle) +. 3.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
       victoire = etat.victoire
@@ -116,7 +117,7 @@ let rotation_gauche etat =
 let rotation_droite etat =
   let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (float_of_int (new_angle) +. 1.0) };
+      vaisseau = { angle = (float_of_int (new_angle) -. 3.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
       victoire = etat.victoire
@@ -243,6 +244,13 @@ let etat_suivant etat =
     projectiles = [];
     victoire = false
   }
+  else if (length res.asteroides) = 0
+  then {
+    vaisseau = etat.vaisseau;
+    asteroides = [];
+    projectiles = [];
+    victoire = true
+  }
   else {
     vaisseau = etat.vaisseau;
     asteroides = maja res.asteroides;
@@ -273,7 +281,7 @@ let rec affiche_projectiles (projectiles : projectile list) =
 let rec affiche_asteroides (asteroides : asteroide list) =
   match asteroides with
   | [] -> ()
-  | a::s -> fill_circle a.position.x a.position.y a.rayon; set_color a.couleur; affiche_asteroides s;;
+  | a::s -> set_color a.couleur; fill_circle a.position.x a.position.y a.rayon; affiche_asteroides s;;
 
 (* Dessine le fond noir et appelle les fonctions d'affichage *)
 let affiche_etat etat =
@@ -284,11 +292,11 @@ let affiche_etat etat =
   moveto 500 500;
 
   if etat.victoire
-  then draw_string "Gagné";
+  then draw_string gagne;
 
   if (length etat.asteroides) <= 0
   then draw_string perdu;
-  
+
   set_color white;
   affiche_vaisseau etat.vaisseau;
   set_color yellow;
