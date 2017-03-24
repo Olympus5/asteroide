@@ -8,7 +8,8 @@ let couleurs = [| red; white; yellow; cyan; magenta; green; blue |];;
 
 (*message de fin de partie*)
 let gagne = "Cest gagné :D";;
-let perdu = "PERDU FDP D'ADRIEN";;
+let perdu = "PERDU !!!";;
+let info = "appuyez sur 'q' pour quitter";;
 
 (* dimension fenetre graphique *)
 let width = 1000;;
@@ -63,7 +64,7 @@ type 'a gen = unit -> 'a;;
 let lance (g : 'a gen) : 'a = g ();;
 
 let gen_un_cent = fun () -> 1 + (Random.int 50);;
-let gen_rayon = fun () -> ([|2; 4; 8; 16; 32; 64|]).(Random.int 6);;
+let gen_rayon = fun () -> int_of_float (2.0 ** float_of_int ((Random.int 5) + 2));;
 let gen_angle = fun () -> Random.int 360;;
 let gen_x = fun () -> ([| Random.int 401; 600 + (Random.int 401) |]).(Random.int 2);;
 let gen_y = fun () -> ([| Random.int 201; 400 + (Random.int 201) |]).(Random.int 2);;
@@ -110,7 +111,7 @@ let acceleration etat = etat (* A REDEFINIR *)
 let rotation_gauche etat =
   let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (float_of_int (new_angle) +. 3.0) };
+      vaisseau = { angle = (float_of_int (new_angle) +. 5.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
       victoire = etat.victoire;
@@ -120,7 +121,7 @@ let rotation_gauche etat =
 let rotation_droite etat =
   let new_angle = int_of_float (etat.vaisseau.angle) mod 360 in
   {
-      vaisseau = { angle = (float_of_int (new_angle) -. 3.0) };
+      vaisseau = { angle = (float_of_int (new_angle) -. 5.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
       victoire = etat.victoire;
@@ -196,6 +197,19 @@ let majp = mise_a_jour_projectiles;;
 (* Fonction qui test les collision avec les asteroides et les projectiles *)
 let collision_tir etat =
   let coll_ast etat =
+    let rec reduire_ast i ray pos coul=
+      if i = 0
+      then []
+      else {
+        rayon = ray;
+        angle = float_of_int (lance gen_angle);
+        distance = ray;
+        origine = pos;
+        position = pos;
+        couleur = coul;
+        vitesse = lance gen_vitesse
+      } :: reduire_ast (i-1) ray pos coul
+    in
     fold_left ( fun acc (asteroide : asteroide) ->
       let i = ref 0 in
       let col = ref false in
@@ -206,7 +220,9 @@ let collision_tir etat =
       done;
 
       if !col
-      then acc
+      then if (asteroide.rayon / 2) != 2
+           then (reduire_ast ((Random.int 3) + 1) (asteroide.rayon / 2) (asteroide.position) (asteroide.couleur)) @ acc
+           else acc
       else asteroide :: acc
     ) [] etat.asteroides
   in
@@ -307,6 +323,11 @@ let affiche_etat etat =
 
   if (length etat.asteroides) <= 0
   then draw_string perdu;
+
+  moveto 500 450;
+
+  if (length etat.asteroides) <= 0 || etat.victoire
+  then draw_string info;
 
   set_color white;
   affiche_vaisseau etat.vaisseau;
