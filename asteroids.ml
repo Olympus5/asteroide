@@ -47,7 +47,8 @@ type etat = {
     vaisseau : vaisseau;
     asteroides: asteroide list;
     projectiles: projectile list;
-    victoire : bool
+    victoire : bool;
+    fin : bool
 };;(* A REDEFINIR *)
 
 
@@ -62,7 +63,7 @@ type 'a gen = unit -> 'a;;
 let lance (g : 'a gen) : 'a = g ();;
 
 let gen_un_cent = fun () -> 1 + (Random.int 50);;
-let gen_rayon = fun () -> ([|5; 10; 20; 40|]).(Random.int 4);;
+let gen_rayon = fun () -> ([|2; 4; 8; 16; 32; 64|]).(Random.int 6);;
 let gen_angle = fun () -> Random.int 360;;
 let gen_x = fun () -> ([| Random.int 401; 600 + (Random.int 401) |]).(Random.int 2);;
 let gen_y = fun () -> ([| Random.int 201; 400 + (Random.int 201) |]).(Random.int 2);;
@@ -97,6 +98,7 @@ let init_etat () =
       asteroides = faire_asteroide (lance gen_un_cent);
       projectiles = [];
       victoire = false;
+      fin = false
   };; (* A REDEFINIR *)
 
 (* --- changements d'etat --- *)
@@ -111,7 +113,8 @@ let rotation_gauche etat =
       vaisseau = { angle = (float_of_int (new_angle) +. 3.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
-      victoire = etat.victoire
+      victoire = etat.victoire;
+      fin = etat.fin
   };; (* A REDEFINIR *)
 
 let rotation_droite etat =
@@ -120,7 +123,8 @@ let rotation_droite etat =
       vaisseau = { angle = (float_of_int (new_angle) -. 3.0) };
       asteroides = etat.asteroides;
       projectiles = etat.projectiles;
-      victoire = etat.victoire
+      victoire = etat.victoire;
+      fin = etat.fin
   };; (* A REDEFINIR *)
 
 (* tir d'un nouveau projectile *)
@@ -137,7 +141,8 @@ let tir etat =
         };
         vitesse = 6
       } :: etat.projectiles;
-      victoire = etat.victoire
+      victoire = etat.victoire;
+      fin = etat.fin
   };;(* A REDEFINIR *)
 
 (* calcul de l'etat suivant, apres un pas de temps *)
@@ -156,7 +161,7 @@ let rec mise_a_jour_asteroides (l : asteroide list) =
         y = int_of_float(float_of_int (y) +. float_of_int (dist) *. sin (d_v_r a.angle))
       };
       couleur = a.couleur;
-      vitesse = a.vitesse
+      vitesse = a.vitesse;
     }
   in
   match l with
@@ -226,7 +231,8 @@ let collision_tir etat =
     vaisseau = etat.vaisseau;
     asteroides = (coll_ast etat);
     projectiles = (coll_proj etat);
-    victoire = false
+    victoire = etat.victoire;
+    fin = etat.fin
   }
 
 let rec collision_vaisseau (asteroides : asteroide list) vaisseau =
@@ -242,20 +248,23 @@ let etat_suivant etat =
     vaisseau = etat.vaisseau;
     asteroides = [];
     projectiles = [];
-    victoire = false
+    victoire = false;
+    fin = true
   }
-  else if (length res.asteroides) = 0
+  else if (length res.asteroides) = 0 && etat.fin != true
   then {
     vaisseau = etat.vaisseau;
     asteroides = [];
     projectiles = [];
-    victoire = true
+    victoire = true;
+    fin = true
   }
   else {
     vaisseau = etat.vaisseau;
     asteroides = maja res.asteroides;
     projectiles = majp res.projectiles;
-    victoire = false
+    victoire = false;
+    fin = etat.fin
   };;
 (* --- affichages graphiques --- *)
 
@@ -290,6 +299,8 @@ let affiche_etat etat =
 
   set_color red;
   moveto 500 500;
+
+  print_endline (string_of_bool etat.victoire);
 
   if etat.victoire
   then draw_string gagne;
